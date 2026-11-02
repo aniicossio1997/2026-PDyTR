@@ -1,0 +1,12 @@
+# Normalizar archivos de texto a LF
+* text=auto
+
+# Mantener LF en scripts Linux
+*.sh text eol=lf
+
+# Mantener LF en archivos de código C
+*.c text eol=lf
+*.h text eol=lf
+
+# Mantener LF en archivos de texto
+*.txt text eol=lf
