@@ -1,0 +1,61 @@
+# =============================================================================
+# TP3 - PDyTR - Ejercicio 1: ping-pong MQTT en tres maquinas virtuales
+# Vagrantfile para Windows
+# =============================================================================
+# Requisitos: VirtualBox 7.1 o superior y Vagrant 2.4 o superior.
+#
+# Uso (desde esta carpeta, en PowerShell o CMD):
+#   vagrant up           levanta mqttbroker, mqttpub y mqttsub
+#   vagrant ssh mqttpub  entra a una VM
+#   vagrant halt         apaga las tres
+#
+# Red privada 192.168.56.0/24: broker .10, cliente (pub) .11, eco (sub) .12
+# Esta carpeta queda compartida en las VMs cliente como ~/ejercicio-01
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-22.04"
+  config.vm.box_architecture = "amd64"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 1
+  end
+
+  # --- BROKER: Mosquitto, solo infraestructura (no hay codigo propio) ---
+  config.vm.define "mqttbroker" do |broker|
+    broker.vm.hostname = "mqttbroker"
+    broker.vm.network "private_network", ip: "192.168.56.10"
+    broker.vm.provider "virtualbox" do |v|
+      v.name = "mqttbroker"
+    end
+
+    broker.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y mosquitto mosquitto-clients
+      echo "listener 1883 0.0.0.0" > /etc/mosquitto/conf.d/external.conf
+      echo "allow_anonymous true" >> /etc/mosquitto/conf.d/external.conf
+      systemctl restart mosquitto
+    SHELL
+  end
+
+  # --- CLIENTE (mqttpub) y ECO (mqttsub): corren el codigo de fuentes/ ---
+  {
+    "mqttpub" => "192.168.56.11",
+    "mqttsub" => "192.168.56.12"
+  }.each do |name, ip|
+    config.vm.define name do |node|
+      node.vm.hostname = name
+      node.vm.network "private_network", ip: ip
+      node.vm.synced_folder ".", "/home/vagrant/ejercicio-01"
+      node.vm.provider "virtualbox" do |v|
+        v.name = name
+      end
+
+      node.vm.provision "shell", inline: <<-SHELL
+        apt-get update
+        apt-get install -y build-essential libmosquitto-dev mosquitto-clients python3-paho-mqtt dos2unix
+      SHELL
+    end
+  end
+end

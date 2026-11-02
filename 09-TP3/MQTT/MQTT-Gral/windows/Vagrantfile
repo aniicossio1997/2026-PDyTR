@@ -1,0 +1,84 @@
+# =============================================================================
+# TP3 - PDyTR - Laboratorio MQTT - Vagrantfile para Windows
+# =============================================================================
+# Requisitos: VirtualBox 7.1 o superior y Vagrant 2.4 o superior.
+#
+# Si VirtualBox no arranca las VMs (error de VT-x/AMD-V o VMs muy lentas),
+# desactivar Hyper-V, "Plataforma de maquina virtual" y "Aislamiento del
+# nucleo / Integridad de memoria" en Windows y reiniciar.
+#
+# Uso (desde esta carpeta, en PowerShell o CMD):
+#   vagrant up           levanta mqttbroker, mqttpub y mqttsub
+#   vagrant ssh mqttpub  entra a una VM
+#   vagrant halt         apaga las tres
+#
+# Red privada 192.168.56.0/24: broker .10, pub .11, sub .12
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  # PC con Windows: box amd64 para VirtualBox
+  config.vm.box = "bento/ubuntu-22.04"
+  config.vm.box_architecture = "amd64"
+
+  # Configuracion global de VirtualBox para todas las VMs
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 1
+  end
+
+  # Carpetas con los ejemplos, compartidas en los clientes (si existen)
+  ejemplos = {
+    "../../00-Mosq"    => "/home/vagrant/00-Mosq",
+    "../../01-Python"  => "/home/vagrant/01-Python"
+  }
+
+  # --- CONFIGURACION DEL BROKER ---
+  config.vm.define "mqttbroker" do |broker|
+    broker.vm.hostname = "mqttbroker"
+    broker.vm.network "private_network", ip: "192.168.56.10"
+
+    # El nombre visual en VirtualBox igual al hostname
+    broker.vm.provider "virtualbox" do |v|
+      v.name = "mqttbroker"
+    end
+
+    broker.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y mosquitto mosquitto-clients
+      echo "listener 1883 0.0.0.0" > /etc/mosquitto/conf.d/external.conf
+      echo "allow_anonymous true" >> /etc/mosquitto/conf.d/external.conf
+      systemctl restart mosquitto
+    SHELL
+  end
+
+  # --- CONFIGURACION DE CLIENTES (PUB y SUB) ---
+  {
+    "mqttpub" => "192.168.56.11",
+    "mqttsub" => "192.168.56.12"
+  }.each do |name, ip|
+    config.vm.define name do |node|
+      node.vm.hostname = name
+      node.vm.network "private_network", ip: ip
+
+      ejemplos.each do |local, remoto|
+        node.vm.synced_folder local, remoto if File.directory?(File.expand_path(local, __dir__))
+      end
+
+      # El nombre visual en VirtualBox igual al hostname
+      node.vm.provider "virtualbox" do |v|
+        v.name = name
+      end
+
+      node.vm.provision "shell", inline: <<-SHELL
+        apt-get update
+        apt-get install -y joe build-essential libmosquitto-dev mosquitto-clients python3-paho-mqtt dos2unix
+
+        # Los archivos editados en Windows pueden traer fin de linea CRLF;
+        # si un script falla con "\\r: command not found", correr: dos2unix <archivo>
+
+        # The alias for ls
+        grep -q "alias ls='ls -la'" /home/vagrant/.bashrc || echo -e "\\nalias ls='ls -la'" >> /home/vagrant/.bashrc
+      SHELL
+    end
+  end
+end

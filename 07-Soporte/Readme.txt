@@ -1,0 +1,1 @@
+Lamentablemente el audio con el que pude grabar esta clase no es muy bueno, si necesitan alguna aclaración/consulta, avisar por plataforma Ideas
