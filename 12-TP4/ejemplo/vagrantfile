@@ -1,0 +1,23 @@
+# TP4 - JADE: dos VMs, un contenedor JADE en cada una.
+#   jadea (192.168.56.10): Main-Container
+#   jadeb (192.168.56.11): Container-1
+# La carpeta del ejemplo se comparte en /home/vagrant/ejemplo en ambas.
+Vagrant.configure("2") do |config|
+  ("a".."b").each do |id|
+    config.vm.define "jade#{id}" do |machine|
+      machine.vm.box = "bento/ubuntu-22.04"
+      machine.vm.network "private_network", ip: "192.168.56.1#{id == 'a' ? '0' : '1'}"
+      machine.vm.hostname = "jade#{id}"
+      machine.vm.synced_folder ".", "/home/vagrant/ejemplo"
+      machine.vm.provider "virtualbox" do |vb|
+        vb.memory = "1024"
+        vb.name = "jade#{id}"
+      end
+      machine.vm.provision "shell", inline: <<-SHELL
+        apt-get update
+        apt-get install -y net-tools joe make default-jdk
+        grep -q "alias ls='ls -la'" /home/vagrant/.bashrc || echo -e "\\nalias ls='ls -la'" >> /home/vagrant/.bashrc
+      SHELL
+    end
+  end
+end

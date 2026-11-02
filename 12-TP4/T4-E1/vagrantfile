@@ -1,0 +1,24 @@
+# TP4 - Ejercicio 1 - dos VMs, un contenedor JADE en cada una.
+#   e1a (192.168.56.20): Main-Container
+#   e1b (192.168.56.21): Container-1 (acá nacen AgenteA y AgenteB)
+# La carpeta de este ejercicio se comparte en /home/vagrant/T4-E1 en ambas.
+Vagrant.configure("2") do |config|
+  config.vm.boot_timeout = 600 # con Hyper-V/WSL2 activo, VirtualBox arranca más lento
+  ("a".."b").each do |id|
+    config.vm.define "e1#{id}" do |machine|
+      machine.vm.box = "bento/ubuntu-22.04"
+      machine.vm.network "private_network", ip: "192.168.56.2#{id == 'a' ? '0' : '1'}"
+      machine.vm.hostname = "e1#{id}"
+      machine.vm.synced_folder ".", "/home/vagrant/T4-E1"
+      machine.vm.provider "virtualbox" do |vb|
+        vb.memory = "1024"
+        vb.name = "e1#{id}"
+      end
+      machine.vm.provision "shell", inline: <<-SHELL
+        apt-get update
+        apt-get install -y net-tools joe make default-jdk
+        grep -q "alias ls='ls -la'" /home/vagrant/.bashrc || echo -e "\\nalias ls='ls -la'" >> /home/vagrant/.bashrc
+      SHELL
+    end
+  end
+end
