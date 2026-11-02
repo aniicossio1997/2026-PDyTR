@@ -1,0 +1,10 @@
+**.vagrant/*
+
+**.vagrant
+
+/classes/*
+
+**.mp4
+**.srt
+
+.claude
