@@ -17,6 +17,10 @@
 
 **.vscode/*
 
-**resultados/*
+**resultados/**
 
 **macos/*
+
+**.xlsx
+
+**.csv
